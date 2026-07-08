@@ -1,0 +1,12 @@
+{
+  "crons": [
+    { "path": "/api/cron/generate-instances", "schedule": "0 11 * * *" },
+    { "path": "/api/cron/reminders?window=morning", "schedule": "15 11 * * *" },
+    { "path": "/api/cron/reminders?window=afternoon", "schedule": "30 20 * * *" },
+    { "path": "/api/cron/reminders?window=evening", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/closeout", "schedule": "30 0 * * *" },
+    { "path": "/api/cron/reports?type=daily", "schedule": "45 0 * * *" },
+    { "path": "/api/cron/reports?type=weekly", "schedule": "0 23 * * 0" },
+    { "path": "/api/cron/reports?type=monthly", "schedule": "30 23 1 * *" }
+  ]
+}

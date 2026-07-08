@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/*
+  Family Ops design tokens (Phase 1 baseline).
+  Palette: "household operations" — deep spruce green for structure and
+  parent surfaces, cool paper background, a single sun accent reserved
+  for child-facing celebration moments in later phases.
+*/
+@theme {
+  --color-surface: #f6f7f4;
+  --color-card: #ffffff;
+  --color-ink: #212a25;
+  --color-ink-muted: #5c6a62;
+  --color-spruce: #1d5c46;
+  --color-spruce-deep: #123d2e;
+  --color-spruce-soft: #e3ede8;
+  --color-sun: #f4b840;
+  --color-line: #dde3de;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-card: 1rem;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+}
