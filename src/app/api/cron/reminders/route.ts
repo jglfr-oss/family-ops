@@ -5,9 +5,9 @@ import { todayInTimeZone } from "@/lib/services/instances";
 import { sendSms } from "@/lib/services/notifications";
 
 /**
- * Reminder pass (?window=morning|afternoon|evening). Respects the pause flag
- * and skips children with nothing pending. With ENABLE_SMS_REMINDERS=false,
- * intent is logged with status skipped_flag_disabled and nothing is sent.
+ * Reminder pass (?window=morning|afternoon|evening). Respects the household
+ * pause flag, skips children with nothing pending or no phone number, and
+ * sends at most one SMS per child per window per day.
  */
 export async function GET(request: Request) {
   if (request.headers.get("authorization") !== `Bearer ${env.cronSecret}` || !env.cronSecret)
@@ -20,9 +20,7 @@ export async function GET(request: Request) {
   let logged = 0;
 
   for (const hh of households ?? []) {
-    const settings = (hh.household_settings ?? null) as unknown as {
-      reminders_paused: boolean;
-    } | null;
+    const settings = (hh.household_settings ?? null) as unknown as { reminders_paused: boolean } | null;
     if (settings?.reminders_paused) continue;
     const today = todayInTimeZone(hh.timezone);
 
@@ -35,8 +33,7 @@ export async function GET(request: Request) {
       .eq("chore_schedules.reminder_eligible", true);
 
     const byChild = new Map<string, number>();
-    for (const i of pendings ?? [])
-      byChild.set(i.assigned_user_id, (byChild.get(i.assigned_user_id) ?? 0) + 1);
+    for (const i of pendings ?? []) byChild.set(i.assigned_user_id, (byChild.get(i.assigned_user_id) ?? 0) + 1);
 
     for (const [childId, count] of byChild) {
       // Duplicate suppression: one reminder per child per window per day.
@@ -48,9 +45,16 @@ export async function GET(request: Request) {
         .limit(1);
       if (already && already.length > 0) continue;
 
+      const { data: child } = await admin
+        .from("profiles")
+        .select("phone_number, display_name")
+        .eq("id", childId)
+        .single();
+
+      const name = child?.display_name ? `${child.display_name}, you` : "You";
       const result = await sendSms(
-        "",
-        `You have ${count} chore${count === 1 ? "" : "s"} left today. You've got this!`
+        child?.phone_number ?? "",
+        `${name} have ${count} chore${count === 1 ? "" : "s"} left today. You've got this!`
       );
       await admin.from("reminder_log").insert({
         household_id: hh.id,
