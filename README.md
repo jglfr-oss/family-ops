@@ -67,6 +67,8 @@ src/
 docs/                   # architecture and implementation plan
 ```
 
+
+
 ## Docs
 
 - [docs/implementation-plan.md](docs/implementation-plan.md) — phased build plan
