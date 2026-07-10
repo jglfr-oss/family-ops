@@ -165,6 +165,72 @@ export async function createSchedule(_prev: ActionState, formData: FormData): Pr
   return { ok: true };
 }
 
+export async function updateSchedule(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parent = await requireParent();
+  const scheduleId = String(formData.get("schedule_id") ?? "");
+  if (!scheduleId) return { error: "Missing schedule." };
+  const raw = {
+    chore_id: formData.get("chore_id"),
+    assigned_user_id: formData.get("assigned_user_id"),
+    cadence: formData.get("cadence"),
+    due_time: formData.get("due_time") ?? "",
+    start_date: formData.get("start_date"),
+    end_date: formData.get("end_date") ?? "",
+    days_of_week: formData.getAll("days_of_week").map(Number),
+    day_of_month: formData.get("day_of_month") || undefined,
+    one_time_date: formData.get("one_time_date") ?? "",
+    late_completion_allowed: formData.get("late_completion_allowed") === "on",
+    make_up_allowed: formData.get("make_up_allowed") === "on",
+    reminder_eligible: formData.get("reminder_eligible") === "on",
+  };
+  const parsed = scheduleSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const v = parsed.data;
+  const supabase = await createClient();
+
+  const { data: before } = await supabase
+    .from("chore_schedules")
+    .select("id, chore_id, assigned_user_id, cadence, due_time, start_date, end_date, days_of_week, day_of_month, one_time_date, late_completion_allowed, make_up_allowed, reminder_eligible")
+    .eq("id", scheduleId)
+    .single();
+  if (!before) return { error: "Schedule not found." };
+
+  // Duplicate warning (excluding this schedule itself).
+  const { data: dupes } = await supabase
+    .from("chore_schedules")
+    .select("id")
+    .eq("chore_id", v.chore_id)
+    .eq("assigned_user_id", v.assigned_user_id)
+    .eq("cadence", v.cadence)
+    .eq("active", true)
+    .neq("id", scheduleId);
+  if (dupes && dupes.length > 0)
+    return { error: "Another active schedule already matches this chore, child, and cadence." };
+
+  const { error } = await supabase
+    .from("chore_schedules")
+    .update({
+      chore_id: v.chore_id,
+      assigned_user_id: v.assigned_user_id,
+      cadence: v.cadence,
+      due_time: v.due_time || null,
+      start_date: v.start_date,
+      end_date: v.end_date || null,
+      days_of_week: v.cadence === "weekly" ? v.days_of_week : null,
+      day_of_month: v.cadence === "monthly" ? v.day_of_month : null,
+      one_time_date: v.cadence === "one_time" ? v.one_time_date : null,
+      late_completion_allowed: v.late_completion_allowed,
+      make_up_allowed: v.make_up_allowed,
+      make_up_deadline_hours: v.make_up_allowed ? 24 : null,
+      reminder_eligible: v.reminder_eligible,
+    })
+    .eq("id", scheduleId);
+  if (error) return { error: "Could not update the schedule." };
+  await audit(parent.household_id!, parent.id, "chore_schedule", scheduleId, "update", before, v);
+  revalidatePath("/parent/schedules");
+  redirect("/parent/schedules");
+}
+
 export async function setScheduleActive(scheduleId: string, active: boolean): Promise<void> {
   const parent = await requireParent();
   const supabase = await createClient();
