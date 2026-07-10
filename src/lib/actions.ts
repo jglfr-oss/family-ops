@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionProfile, homeFor, requireParent } from "@/lib/auth";
 import { choreSchema, scheduleSchema, rejectSchema, overrideSchema } from "@/lib/validation/chores";
 import { pointsForCompletion } from "@/lib/services/scoring";
+import { todayInTimeZone } from "@/lib/services/instances";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -412,6 +413,64 @@ export async function completeChore(instanceId: string): Promise<ActionState> {
       }),
     });
   }
+
+  revalidatePath(`/kids/${instance.assigned_user_id}/today`);
+  return { ok: true };
+}
+
+export async function undoComplete(instanceId: string): Promise<ActionState> {
+  const profile = await getSessionProfile();
+  if (!profile) redirect("/login");
+  const supabase = await createClient();
+
+  // RLS-scoped read proves the caller can see this instance (own, or parent in household).
+  const { data: instance } = await supabase
+    .from("chore_instances")
+    .select("id, status, assigned_user_id, household_id, due_date")
+    .eq("id", instanceId)
+    .single();
+  if (!instance) return { error: "Chore not found." };
+  if (instance.assigned_user_id !== profile.id && profile.role !== "parent")
+    return { error: "You can only undo your own chores." };
+  if (instance.status !== "completed" && instance.status !== "approved")
+    return { error: "This chore can't be undone." };
+
+  // Undo is only allowed while the chore is still today's, in household time.
+  const { data: household } = await supabase
+    .from("households")
+    .select("timezone")
+    .eq("id", instance.household_id)
+    .single();
+  const today = todayInTimeZone(household?.timezone ?? "America/New_York");
+  if (instance.due_date !== today)
+    return { error: "This day is already closed out. Ask a parent to change it." };
+
+  // Child RLS only permits pending -> completed, so the reverse transition runs
+  // through the admin client after the ownership checks above.
+  const admin = createAdminClient();
+  const { error, data: updated } = await admin
+    .from("chore_instances")
+    .update({ status: "pending", completed_at: null, approved_at: null, approved_by: null })
+    .eq("id", instanceId)
+    .in("status", ["completed", "approved"])
+    .select("id")
+    .single();
+  if (error || !updated) return { error: "Could not undo (it may have just changed)." };
+
+  // Claw back any points that were granted on auto-approval.
+  await admin
+    .from("score_events")
+    .delete()
+    .eq("chore_instance_id", instanceId)
+    .eq("event_type", "chore_approved");
+
+  await supabase.from("chore_instance_events").insert({
+    chore_instance_id: instanceId,
+    actor_user_id: profile.id,
+    event_type: "uncompleted",
+    previous_status: instance.status,
+    new_status: "pending",
+  });
 
   revalidatePath(`/kids/${instance.assigned_user_id}/today`);
   return { ok: true };
