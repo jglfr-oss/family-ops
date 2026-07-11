@@ -60,7 +60,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: `Family Ops <${from}>`, to: [to], subject, html }),
+      body: JSON.stringify({ from: `Choreo <${from}>`, to: [to], subject, html }),
     });
     const data = (await res.json()) as { id?: string; message?: string };
     if (!res.ok)

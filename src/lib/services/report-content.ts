@@ -21,7 +21,7 @@ const styles = {
 };
 
 function shell(title: string, period: string, inner: string): string {
-  return `<div style="${styles.body}"><h1 style="${styles.h1}">${title}</h1><p style="${styles.sub}">${period}</p>${inner}<p style="${styles.sub}">Family Ops · automated household report</p></div>`;
+  return `<div style="${styles.body}"><h1 style="${styles.h1}">${title}</h1><p style="${styles.sub}">${period}</p>${inner}<p style="${styles.sub}">Choreo · automated household report</p></div>`;
 }
 
 function dateNDaysAgo(today: string, n: number): string {
@@ -116,7 +116,7 @@ export async function buildDailyReport(
     .join("");
   const footer = `<div style="${styles.card}"><p style="${styles.row}">Awaiting your approval: <strong>${awaiting}</strong></p><p style="${styles.row}">Reminder delivery failures today: <strong>${reminderFails}</strong></p></div>`;
   return {
-    subject: `Family Ops daily — ${today}`,
+    subject: `Choreo daily — ${today}`,
     html: shell(`${householdName}: today`, today, cards + footer),
   };
 }
@@ -144,7 +144,7 @@ export async function buildWeeklyReport(
     ? `<div style="${styles.card}"><p style="${styles.name}">Frequently missed</p>${problem.map(([t, n]) => `<p style="${styles.row}">${t} <span style="${styles.muted}">· missed ${n}×</span></p>`).join("")}</div>`
     : "";
   return {
-    subject: `Family Ops weekly — week of ${from}`,
+    subject: `Choreo weekly — week of ${from}`,
     html: shell(`${householdName}: weekly review`, `${from} to ${today}`, cards + problems),
   };
 }
@@ -163,7 +163,7 @@ export async function buildMonthlyReport(
     })
     .join("");
   return {
-    subject: `Family Ops monthly — ${from} to ${today}`,
+    subject: `Choreo monthly — ${from} to ${today}`,
     html: shell(`${householdName}: monthly report`, `${from} to ${today}`, cards),
   };
 }
