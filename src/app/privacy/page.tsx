@@ -7,7 +7,7 @@ export default function PrivacyPage() {
     <article className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-semibold tracking-tight">Privacy Policy</h1>
       <p className="text-ink-muted mt-4">
-        Choreo is a private household chore application used by a single family.
+        Family Ops is a private household chore application used by a single family.
       </p>
       <h2 className="mt-6 font-semibold">Information we collect</h2>
       <p className="mt-2">
