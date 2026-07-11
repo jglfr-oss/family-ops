@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireParent } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { setChoreActive, archiveChore } from "@/lib/actions";
+import { setChoreActive } from "@/lib/actions";
+import { DeleteChoreButton } from "./delete-chore-button";
 import { ChoreForm, type ChoreInitial } from "./chore-form";
 
 export const metadata: Metadata = { title: "Chores" };
@@ -65,11 +66,7 @@ export default async function ChoresPage({
                     {c.active ? "Pause" : "Reactivate"}
                   </button>
                 </form>
-                <form action={archiveChore.bind(null, c.id)}>
-                  <button className="border-line rounded-lg border px-3 py-1.5 text-sm font-medium text-red-700">
-                    Archive
-                  </button>
-                </form>
+                <DeleteChoreButton choreId={c.id} title={c.title} />
               </div>
             </div>
           </div>
