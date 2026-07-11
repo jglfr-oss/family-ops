@@ -6,10 +6,10 @@ export default function TermsPage() {
   return (
     <article className="prose mx-auto max-w-2xl">
       <h1 className="text-2xl font-semibold tracking-tight">
-        Terms and Conditions — Family Ops Chore Reminders
+        Terms and Conditions — Choreo Chore Reminders
       </h1>
       <p className="text-ink-muted mt-4">
-        Family Ops Chore Reminders is a private, non-commercial text-message program that sends
+        Choreo Chore Reminders is a private, non-commercial text-message program that sends
         household chore reminders and daily summaries to members of a single household.
       </p>
       <h2 className="mt-6 font-semibold">Program description</h2>
