@@ -31,7 +31,14 @@ export default function RootLayout({
             {children}
           </main>
           <footer className="border-line text-ink-muted border-t px-4 py-6 text-center text-xs">
-            Family Ops · household chore management
+            Family Ops · household chore management ·{" "}
+            <a href="/privacy" className="underline">
+              Privacy Policy
+            </a>{" "}
+            ·{" "}
+            <a href="/terms" className="underline">
+              Terms &amp; Conditions
+            </a>
           </footer>
         </div>
       </body>
