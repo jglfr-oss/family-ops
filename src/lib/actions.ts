@@ -304,6 +304,49 @@ export async function setScheduleActive(scheduleId: string, active: boolean): Pr
   revalidatePath("/parent/schedules");
 }
 
+export async function deleteSchedule(scheduleId: string): Promise<void> {
+  const parent = await requireParent();
+  const supabase = await createClient();
+
+  const { data: before } = await supabase
+    .from("chore_schedules")
+    .select(
+      "id, chore_id, assigned_user_id, cadence, due_time, start_date, end_date, days_of_week, day_of_month, one_time_date, chores(title)"
+    )
+    .eq("id", scheduleId)
+    .single();
+  if (!before) redirect("/parent/schedules");
+
+  // Remove chores that haven't been done yet (today and future, still pending).
+  // Completed/approved/missed history is preserved; those rows just lose the
+  // schedule link (ON DELETE SET NULL) so reports and points stay intact.
+  const { data: hh } = await supabase
+    .from("households")
+    .select("timezone")
+    .eq("id", parent.household_id!)
+    .single();
+  const today = todayInTimeZone(hh?.timezone ?? "America/New_York");
+  await supabase
+    .from("chore_instances")
+    .delete()
+    .eq("chore_schedule_id", scheduleId)
+    .eq("status", "pending")
+    .gte("due_date", today);
+
+  await supabase.from("chore_schedules").delete().eq("id", scheduleId);
+  await audit(
+    parent.household_id!,
+    parent.id,
+    "chore_schedule",
+    scheduleId,
+    "delete",
+    before,
+    null
+  );
+  revalidatePath("/parent/schedules");
+  redirect("/parent/schedules");
+}
+
 export async function createException(
   _prev: ActionState,
   formData: FormData
