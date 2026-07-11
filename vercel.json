@@ -1,6 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/generate-instances", "schedule": "0 11 * * *" },
+    { "path": "/api/cron/generate-instances", "schedule": "0 9 * * *" },
     { "path": "/api/cron/reminders?window=morning", "schedule": "0 12 * * *" },
     { "path": "/api/cron/reminders?window=afternoon", "schedule": "30 20 * * *" },
     { "path": "/api/cron/reminders?window=evening", "schedule": "0 0 * * *" },
