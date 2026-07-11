@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { setScheduleActive } from "@/lib/actions";
 import { ScheduleForm, ExceptionForm, type ScheduleInitial } from "./schedule-forms";
 import { WeekView, type WeekSchedule } from "./week-view";
+import { DeleteScheduleButton } from "./delete-button";
 import { todayInTimeZone, dayOfWeek } from "@/lib/services/instances";
 
 export const metadata: Metadata = { title: "Schedules" };
@@ -151,6 +152,10 @@ export default async function SchedulesPage({
                           {s.active ? "Pause" : "Reactivate"}
                         </button>
                       </form>
+                      <DeleteScheduleButton
+                        scheduleId={s.id}
+                        label={`${chore?.title ?? "?"} → ${kid?.display_name ?? "?"}`}
+                      />
                     </div>
                   </div>
                 </div>
