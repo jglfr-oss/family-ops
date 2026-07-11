@@ -6,8 +6,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Family Ops",
-    template: "%s · Family Ops",
+    default: "Choreo",
+    template: "%s · Choreo",
   },
   description: "Chores, schedules, and streaks for the whole household.",
 };
@@ -31,7 +31,7 @@ export default function RootLayout({
             {children}
           </main>
           <footer className="border-line text-ink-muted border-t px-4 py-6 text-center text-xs">
-            Family Ops · household chore management ·{" "}
+            Choreo · chores in sync ·{" "}
             <a href="/privacy" className="underline">
               Privacy Policy
             </a>{" "}
