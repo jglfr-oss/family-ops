@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { todayInTimeZone } from "@/lib/services/instances";
 import { sendSms } from "@/lib/services/notifications";
 import { isPaused, isQuietTime, type ReminderSettings } from "@/lib/services/reminder-rules";
+import { SMS_BRAND } from "@/lib/services/sms-brand";
 
 /** Current wall-clock time "HH:MM" in an IANA timezone. */
 function nowTimeIn(timeZone: string): string {
@@ -86,9 +87,12 @@ export async function GET(request: Request) {
       const shown = titles.slice(0, 4).join(", ");
       const more = count > 4 ? ` +${count - 4} more` : "";
       const name = child?.display_name ?? "Hey";
+      const optOut =
+        window === "morning" ? " Reply STOP to opt out, HELP for help." : " Reply STOP to opt out.";
+      const verb = window === "morning" ? "today" : "left today";
       const result = await sendSms(
         child?.phone_number ?? "",
-        `${name}: ${count} chore${count === 1 ? "" : "s"} today — ${shown}${more}. You've got this!`
+        `${SMS_BRAND}: Hi ${name}! ${count} chore${count === 1 ? "" : "s"} ${verb}: ${shown}${more}.${optOut}`
       );
       await admin.from("reminder_log").insert({
         household_id: hh.id,
@@ -131,7 +135,7 @@ export async function GET(request: Request) {
         if (already && already.length > 0) continue;
         const result = await sendSms(
           parent.phone_number!,
-          `Family Ops today: ${overview} chores on deck.`
+          `${SMS_BRAND} today: ${overview} chores on deck. Reply STOP to opt out.`
         );
         await admin.from("reminder_log").insert({
           household_id: hh.id,
