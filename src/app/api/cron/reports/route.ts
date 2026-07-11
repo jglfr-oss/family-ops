@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { todayInTimeZone } from "@/lib/services/instances";
 import { sendEmail, sendSms } from "@/lib/services/notifications";
+import { SMS_BRAND } from "@/lib/services/sms-brand";
 import {
   buildDailyReport,
   buildMonthlyReport,
@@ -101,7 +102,7 @@ export async function GET(request: Request) {
       return `${k.display_name} ${mine.filter((i) => done.has(i.status)).length}/${mine.length}`;
     });
     const approvalNote = (awaiting ?? 0) > 0 ? ` ${awaiting} awaiting approval.` : "";
-    const body = `Family Ops today: ${perChild.join(", ")}.${approvalNote}`;
+    const body = `${SMS_BRAND} daily: ${perChild.join(", ")}.${approvalNote} Reply STOP to opt out.`;
 
     for (const parent of parents) {
       // One digest per parent per day.
