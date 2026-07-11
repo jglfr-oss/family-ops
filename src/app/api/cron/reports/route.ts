@@ -3,6 +3,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { todayInTimeZone } from "@/lib/services/instances";
 import { sendEmail, sendSms } from "@/lib/services/notifications";
+import {
+  buildDailyReport,
+  buildMonthlyReport,
+  buildWeeklyReport,
+} from "@/lib/services/report-content";
 
 /**
  * Report pass (?type=daily|weekly|monthly).
@@ -15,7 +20,10 @@ export async function GET(request: Request) {
   if (request.headers.get("authorization") !== `Bearer ${env.cronSecret}` || !env.cronSecret)
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const type = new URL(request.url).searchParams.get("type") ?? "daily";
-  const recipients = (process.env.PARENT_REPORT_RECIPIENTS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const recipients = (process.env.PARENT_REPORT_RECIPIENTS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const admin = createAdminClient();
   const { data: households } = await admin.from("households").select("id, name, timezone");
   let logged = 0;
@@ -28,19 +36,26 @@ export async function GET(request: Request) {
     start.setUTCDate(start.getUTCDate() - (back - 1));
     const startStr = start.toISOString().slice(0, 10);
 
-    const { data: instances } = await admin
-      .from("chore_instances")
-      .select("status")
-      .eq("household_id", hh.id)
-      .gte("due_date", startStr)
-      .lte("due_date", today);
-    const counts: Record<string, number> = {};
-    for (const i of instances ?? []) counts[i.status] = (counts[i.status] ?? 0) + 1;
-
-    // ----- Email report (flag-gated; Resend not yet wired) -----
-    const html = `<h1>${hh.name} — ${type} report</h1><p>${startStr} to ${today}</p><pre>${JSON.stringify(counts, null, 2)}</pre>`;
+    // ----- Email report via Resend (flag-gated) -----
+    const report =
+      type === "weekly"
+        ? await buildWeeklyReport(hh.id, hh.name, today)
+        : type === "monthly"
+          ? await buildMonthlyReport(hh.id, hh.name, today)
+          : await buildDailyReport(hh.id, hh.name, today);
     for (const to of recipients.length ? recipients : ["(no recipients configured)"]) {
-      const result = await sendEmail(to, `Family Ops ${type} report`, html);
+      // One successful email per type/period/recipient.
+      const { data: alreadySent } = await admin
+        .from("report_log")
+        .select("id")
+        .eq("household_id", hh.id)
+        .eq("report_type", type)
+        .eq("period_end", today)
+        .eq("recipient", to)
+        .eq("delivery_status", "sent")
+        .limit(1);
+      if (alreadySent && alreadySent.length > 0) continue;
+      const result = await sendEmail(to, report.subject, report.html);
       await admin.from("report_log").insert({
         household_id: hh.id,
         report_type: type,
@@ -58,9 +73,21 @@ export async function GET(request: Request) {
     if (type !== "daily") continue;
 
     const [{ data: members }, { data: todays }, { count: awaiting }] = await Promise.all([
-      admin.from("profiles").select("id, role, display_name, phone_number, active").eq("household_id", hh.id).eq("active", true),
-      admin.from("chore_instances").select("assigned_user_id, status").eq("household_id", hh.id).eq("due_date", today),
-      admin.from("chore_instances").select("id", { count: "exact", head: true }).eq("household_id", hh.id).eq("status", "completed"),
+      admin
+        .from("profiles")
+        .select("id, role, display_name, phone_number, active")
+        .eq("household_id", hh.id)
+        .eq("active", true),
+      admin
+        .from("chore_instances")
+        .select("assigned_user_id, status")
+        .eq("household_id", hh.id)
+        .eq("due_date", today),
+      admin
+        .from("chore_instances")
+        .select("id", { count: "exact", head: true })
+        .eq("household_id", hh.id)
+        .eq("status", "completed"),
     ]);
 
     const kids = (members ?? []).filter((m) => m.role === "child");
