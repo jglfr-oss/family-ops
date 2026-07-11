@@ -9,7 +9,8 @@ import { env } from "@/lib/env";
 export type SendResult = { status: string; providerMessageId: string | null; error: string | null };
 
 export async function sendSms(to: string, body: string): Promise<SendResult> {
-  if (!env.smsEnabled) return { status: "skipped_flag_disabled", providerMessageId: null, error: null };
+  if (!env.smsEnabled)
+    return { status: "skipped_flag_disabled", providerMessageId: null, error: null };
   if (!to) return { status: "skipped_no_phone", providerMessageId: null, error: null };
 
   const sid = process.env.TWILIO_ACCOUNT_SID ?? "";
@@ -28,15 +29,52 @@ export async function sendSms(to: string, body: string): Promise<SendResult> {
       body: new URLSearchParams({ To: to, MessagingServiceSid: messagingServiceSid, Body: body }),
     });
     const data = (await res.json()) as { sid?: string; message?: string };
-    if (!res.ok) return { status: "failed", providerMessageId: null, error: data.message ?? `HTTP ${res.status}` };
+    if (!res.ok)
+      return {
+        status: "failed",
+        providerMessageId: null,
+        error: data.message ?? `HTTP ${res.status}`,
+      };
     return { status: "sent", providerMessageId: data.sid ?? null, error: null };
   } catch (e) {
-    return { status: "failed", providerMessageId: null, error: e instanceof Error ? e.message : "unknown error" };
+    return {
+      status: "failed",
+      providerMessageId: null,
+      error: e instanceof Error ? e.message : "unknown error",
+    };
   }
 }
 
-export async function sendEmail(_to: string, _subject: string, _html: string): Promise<SendResult> {
-  if (!env.emailEnabled) return { status: "skipped_flag_disabled", providerMessageId: null, error: null };
-  // Resend integration point (ENABLE_EMAIL_REPORTS=true + RESEND_API_KEY).
-  return { status: "not_implemented", providerMessageId: null, error: "Resend sender not yet implemented" };
+export async function sendEmail(to: string, subject: string, html: string): Promise<SendResult> {
+  if (!env.emailEnabled)
+    return { status: "skipped_flag_disabled", providerMessageId: null, error: null };
+  if (!to || !to.includes("@"))
+    return { status: "skipped_no_recipient", providerMessageId: null, error: null };
+
+  const apiKey = process.env.RESEND_API_KEY ?? "";
+  const from = process.env.EMAIL_FROM ?? "";
+  if (!apiKey || !from)
+    return { status: "failed", providerMessageId: null, error: "Resend env vars missing" };
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: `Family Ops <${from}>`, to: [to], subject, html }),
+    });
+    const data = (await res.json()) as { id?: string; message?: string };
+    if (!res.ok)
+      return {
+        status: "failed",
+        providerMessageId: null,
+        error: data.message ?? `HTTP ${res.status}`,
+      };
+    return { status: "sent", providerMessageId: data.id ?? null, error: null };
+  } catch (e) {
+    return {
+      status: "failed",
+      providerMessageId: null,
+      error: e instanceof Error ? e.message : "unknown error",
+    };
+  }
 }
