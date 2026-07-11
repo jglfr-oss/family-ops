@@ -133,6 +133,54 @@ export async function archiveChore(choreId: string): Promise<void> {
   revalidatePath("/parent/chores");
 }
 
+export async function deleteChore(choreId: string): Promise<void> {
+  const parent = await requireParent();
+  const supabase = await createClient();
+
+  const { data: before } = await supabase
+    .from("chores")
+    .select("id, title, description, default_points, requires_approval")
+    .eq("id", choreId)
+    .single();
+  if (!before) redirect("/parent/chores");
+
+  const { data: schedules } = await supabase
+    .from("chore_schedules")
+    .select("id")
+    .eq("chore_id", choreId);
+
+  // Remove not-yet-done chores (today and future, still pending); history stays.
+  const { data: hh } = await supabase
+    .from("households")
+    .select("timezone")
+    .eq("id", parent.household_id!)
+    .single();
+  const today = todayInTimeZone(hh?.timezone ?? "America/New_York");
+  await supabase
+    .from("chore_instances")
+    .delete()
+    .eq("chore_id", choreId)
+    .eq("status", "pending")
+    .gte("due_date", today);
+
+  // Delete every schedule for this chore (exceptions cascade with them).
+  await supabase.from("chore_schedules").delete().eq("chore_id", choreId);
+
+  // Historical instances still reference the chore, so the master record is
+  // archived rather than hard-deleted; it disappears from all lists either way.
+  await supabase
+    .from("chores")
+    .update({ active: false, archived_at: new Date().toISOString() })
+    .eq("id", choreId);
+
+  await audit(parent.household_id!, parent.id, "chore", choreId, "delete", before, {
+    schedules_deleted: (schedules ?? []).length,
+  });
+  revalidatePath("/parent/chores");
+  revalidatePath("/parent/schedules");
+  redirect("/parent/chores");
+}
+
 // ---------- parent: schedules ----------
 
 export async function createSchedule(_prev: ActionState, formData: FormData): Promise<ActionState> {
