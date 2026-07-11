@@ -13,7 +13,7 @@ export async function SiteHeader() {
           >
             ✓
           </span>
-          <span className="text-lg font-semibold tracking-tight">Family Ops</span>
+          <span className="text-lg font-semibold tracking-tight">Choreo</span>
         </Link>
         <nav aria-label="Account" className="flex items-center gap-2">
           {profile ? (
