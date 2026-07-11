@@ -78,6 +78,34 @@ export async function createChore(_prev: ActionState, formData: FormData): Promi
   return { ok: true };
 }
 
+export async function updateChore(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parent = await requireParent();
+  const choreId = String(formData.get("chore_id") ?? "");
+  if (!choreId) return { error: "Missing chore." };
+  const parsed = choreSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const supabase = await createClient();
+
+  const { data: before } = await supabase
+    .from("chores")
+    .select("id, title, description, default_points, requires_approval")
+    .eq("id", choreId)
+    .single();
+  if (!before) return { error: "Chore not found." };
+
+  const patch = {
+    title: parsed.data.title,
+    description: parsed.data.description || null,
+    default_points: parsed.data.default_points,
+    requires_approval: formData.get("requires_approval") === "on",
+  };
+  const { error } = await supabase.from("chores").update(patch).eq("id", choreId);
+  if (error) return { error: "Could not update the chore." };
+  await audit(parent.household_id!, parent.id, "chore", choreId, "update", before, patch);
+  revalidatePath("/parent/chores");
+  redirect("/parent/chores");
+}
+
 export async function setChoreActive(choreId: string, active: boolean): Promise<void> {
   const parent = await requireParent();
   const supabase = await createClient();
