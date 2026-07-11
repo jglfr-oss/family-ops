@@ -4,6 +4,7 @@ import { requireParent } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { todayInTimeZone } from "@/lib/services/instances";
 import { sendSms } from "@/lib/services/notifications";
+import { SMS_BRAND } from "@/lib/services/sms-brand";
 import type { ActionState } from "@/lib/actions";
 
 export type NotifyResult = ActionState & { sent?: number };
@@ -54,7 +55,7 @@ export async function textKidsNow(): Promise<NotifyResult> {
     const more = titles.length > 4 ? ` +${titles.length - 4} more` : "";
     const result = await sendSms(
       child.phone_number,
-      `${child.display_name}: reminder — still to do today: ${shown}${more}.`
+      `${SMS_BRAND}: ${child.display_name}, still to do today: ${shown}${more}. Reply STOP to opt out.`
     );
     await admin.from("reminder_log").insert({
       household_id: household.id,
