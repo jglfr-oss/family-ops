@@ -11,7 +11,7 @@ export default async function LoginPage() {
   return (
     <div className="mx-auto max-w-sm">
       <section className="rounded-card border-line bg-card border p-6 sm:p-8">
-        <p className="text-spruce text-xs font-semibold tracking-widest uppercase">Family Ops</p>
+        <p className="text-spruce text-xs font-semibold tracking-widest uppercase">Choreo</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Log in</h1>
         <p className="text-ink-muted mt-2 text-sm">
           Use the email and password a parent set up for you.
