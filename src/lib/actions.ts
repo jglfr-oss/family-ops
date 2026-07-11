@@ -262,6 +262,32 @@ export async function updateSchedule(_prev: ActionState, formData: FormData): Pr
   redirect("/parent/schedules");
 }
 
+export async function toggleScheduleDay(scheduleId: string, day: number): Promise<void> {
+  const parent = await requireParent();
+  const supabase = await createClient();
+  const { data: sched } = await supabase
+    .from("chore_schedules")
+    .select("id, cadence, days_of_week")
+    .eq("id", scheduleId)
+    .single();
+  if (!sched || sched.cadence !== "weekly") redirect("/parent/schedules?view=week");
+  const days: number[] = sched.days_of_week ?? [];
+  const next = days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort();
+  if (next.length === 0) redirect("/parent/schedules?view=week&err=lastday");
+  await supabase.from("chore_schedules").update({ days_of_week: next }).eq("id", scheduleId);
+  await audit(
+    parent.household_id!,
+    parent.id,
+    "chore_schedule",
+    scheduleId,
+    "toggle_day",
+    { days_of_week: days },
+    { days_of_week: next }
+  );
+  revalidatePath("/parent/schedules");
+  redirect("/parent/schedules?view=week");
+}
+
 export async function setScheduleActive(scheduleId: string, active: boolean): Promise<void> {
   const parent = await requireParent();
   const supabase = await createClient();
