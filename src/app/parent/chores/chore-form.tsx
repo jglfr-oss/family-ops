@@ -70,15 +70,6 @@ export function ChoreForm({ initial }: { initial?: ChoreInitial | null }) {
             className={input}
           />
         </label>
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            name="requires_approval"
-            type="checkbox"
-            defaultChecked={initial?.requires_approval ?? false}
-            className="size-4"
-          />
-          Needs parent approval
-        </label>
       </div>
       {state.error && <p className="mt-3 text-sm text-red-700">{state.error}</p>}
       {state.ok && !isEdit && <p className="text-spruce mt-3 text-sm">Chore added.</p>}
