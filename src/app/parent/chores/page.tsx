@@ -50,9 +50,7 @@ export default async function ChoresPage({
                   )}
                 </h2>
                 {c.description && <p className="text-ink-muted text-sm">{c.description}</p>}
-                <p className="text-ink-muted mt-1 text-xs">
-                  {c.default_points} pts{c.requires_approval ? " · needs approval" : ""}
-                </p>
+                <p className="text-ink-muted mt-1 text-xs">{c.default_points} pts</p>
               </div>
               <div className="flex gap-2">
                 <Link
