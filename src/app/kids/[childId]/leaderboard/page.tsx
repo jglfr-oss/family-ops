@@ -51,7 +51,7 @@ export default async function KidLeaderboard({ params }: { params: Promise<{ chi
           >
             <span className="font-semibold">
               {idx === 0 && totals.length > 1 && k.points > 0 ? "🏆 " : ""}
-              {k.display_name} {k.id === childId ? "(you)" : ""}
+              {k.display_name} {k.id === profile.id ? "(you)" : ""}
             </span>
             <span className="text-spruce-deep font-semibold">{k.points} pts</span>
           </li>
