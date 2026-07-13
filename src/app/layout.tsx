@@ -10,11 +10,23 @@ export const metadata: Metadata = {
     template: "%s · Choreo",
   },
   description: "Chores, schedules, and streaks for the whole household.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Choreo",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#1d5c46",
 };
 
 export default function RootLayout({
