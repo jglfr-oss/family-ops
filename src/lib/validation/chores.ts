@@ -4,7 +4,6 @@ export const choreSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(120),
   description: z.string().trim().max(500).optional().or(z.literal("")),
   default_points: z.coerce.number().int().min(0).max(1000),
-  requires_approval: z.coerce.boolean(),
 });
 
 export const scheduleSchema = z
