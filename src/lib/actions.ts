@@ -488,7 +488,7 @@ export async function completeChore(instanceId: string): Promise<ActionState> {
   const { data: instance } = await supabase
     .from("chore_instances")
     .select(
-      "id, status, due_at, make_up_due_at, chore_schedule_id, household_id, assigned_user_id, points_available, completed_at, chores(requires_approval)"
+      "id, status, due_at, make_up_due_at, chore_schedule_id, household_id, assigned_user_id, points_available, completed_at"
     )
     .eq("id", instanceId)
     .single();
@@ -517,10 +517,8 @@ export async function completeChore(instanceId: string): Promise<ActionState> {
       return { error: "The completion window for this chore has closed. Ask a parent." };
   }
 
-  const requiresApproval = Array.isArray(instance.chores)
-    ? false
-    : ((instance.chores as { requires_approval: boolean } | null)?.requires_approval ?? false);
-  const newStatus = requiresApproval ? "completed" : "approved";
+  // All completions await parent approval; points are granted only on approval.
+  const newStatus = "completed" as const;
   const completedAt = now.toISOString();
 
   const { error, data: updated } = await supabase
@@ -528,7 +526,6 @@ export async function completeChore(instanceId: string): Promise<ActionState> {
     .update({
       status: newStatus,
       completed_at: completedAt,
-      approved_at: requiresApproval ? null : completedAt,
     })
     .eq("id", instanceId)
     .eq("status", "pending") // duplicate-submission guard
@@ -544,20 +541,6 @@ export async function completeChore(instanceId: string): Promise<ActionState> {
     previous_status: "pending",
     new_status: newStatus,
   });
-
-  if (!requiresApproval) {
-    await supabase.from("score_events").insert({
-      household_id: instance.household_id,
-      user_id: instance.assigned_user_id,
-      chore_instance_id: instanceId,
-      event_type: "chore_approved",
-      points: pointsForCompletion({
-        points_available: instance.points_available,
-        due_at: instance.due_at,
-        completed_at: completedAt,
-      }),
-    });
-  }
 
   revalidatePath(`/kids/${instance.assigned_user_id}/today`);
   return { ok: true };
