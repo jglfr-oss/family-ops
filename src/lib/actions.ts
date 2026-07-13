@@ -67,7 +67,7 @@ export async function createChore(_prev: ActionState, formData: FormData): Promi
       title: parsed.data.title,
       description: parsed.data.description || null,
       default_points: parsed.data.default_points,
-      requires_approval: formData.get("requires_approval") === "on",
+      requires_approval: true,
       created_by: parent.id,
     })
     .select("id")
@@ -97,7 +97,7 @@ export async function updateChore(_prev: ActionState, formData: FormData): Promi
     title: parsed.data.title,
     description: parsed.data.description || null,
     default_points: parsed.data.default_points,
-    requires_approval: formData.get("requires_approval") === "on",
+    requires_approval: true,
   };
   const { error } = await supabase.from("chores").update(patch).eq("id", choreId);
   if (error) return { error: "Could not update the chore." };
