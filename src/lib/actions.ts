@@ -693,6 +693,75 @@ export async function rejectInstance(_prev: ActionState, formData: FormData): Pr
   return { ok: true };
 }
 
+export async function undoCompletionParent(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const parent = await requireParent();
+  const instanceId = String(formData.get("instance_id") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!instanceId) return { error: "Missing chore." };
+  if (!reason) return { error: "A reason is required to undo a completion." };
+  const supabase = await createClient();
+
+  const { data: instance } = await supabase
+    .from("chore_instances")
+    .select("id, status, assigned_user_id, household_id, due_date")
+    .eq("id", instanceId)
+    .single();
+  if (!instance) return { error: "Chore not found." };
+  if (instance.status !== "completed" && instance.status !== "approved")
+    return { error: "Only completed or approved chores can be undone." };
+
+  const { data: hh } = await supabase
+    .from("households")
+    .select("timezone")
+    .eq("id", parent.household_id!)
+    .single();
+  const today = todayInTimeZone(hh?.timezone ?? "America/New_York");
+  const y = new Date(`${today}T00:00:00Z`);
+  y.setUTCDate(y.getUTCDate() - 1);
+  const yesterday = y.toISOString().slice(0, 10);
+  if (instance.due_date !== today && instance.due_date !== yesterday)
+    return { error: "Undo is limited to today's and yesterday's chores." };
+
+  const admin = createAdminClient();
+  const { error, data: updated } = await admin
+    .from("chore_instances")
+    .update({ status: "pending", completed_at: null, approved_at: null, approved_by: null })
+    .eq("id", instanceId)
+    .in("status", ["completed", "approved"])
+    .select("id")
+    .single();
+  if (error || !updated) return { error: "Could not undo (it may have just changed)." };
+
+  await admin
+    .from("score_events")
+    .delete()
+    .eq("chore_instance_id", instanceId)
+    .eq("event_type", "chore_approved");
+
+  await supabase.from("parent_overrides").insert({
+    household_id: instance.household_id,
+    chore_instance_id: instanceId,
+    parent_user_id: parent.id,
+    override_type: "undo_completion",
+    reason,
+  });
+  await supabase.from("chore_instance_events").insert({
+    chore_instance_id: instanceId,
+    actor_user_id: parent.id,
+    event_type: "parent_undo_completion",
+    previous_status: instance.status,
+    new_status: "pending",
+    metadata: { reason },
+  });
+
+  revalidatePath("/parent/approvals");
+  revalidatePath(`/kids/${instance.assigned_user_id}/today`);
+  return { ok: true };
+}
+
 export async function overrideInstance(
   _prev: ActionState,
   formData: FormData
