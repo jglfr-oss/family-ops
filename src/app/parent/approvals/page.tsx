@@ -10,6 +10,7 @@ async function approve(instanceId: string): Promise<void> {
 import { RejectForm } from "./reject-form";
 import { UndoCompletionForm } from "./undo-completion-form";
 import { todayInTimeZone } from "@/lib/services/instances";
+import { formatInZone } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Approvals" };
 
@@ -21,7 +22,8 @@ export default async function ApprovalsPage() {
     .select("timezone")
     .eq("id", parent.household_id!)
     .single();
-  const today = todayInTimeZone(hh?.timezone ?? "America/New_York");
+  const tz = hh?.timezone ?? "America/New_York";
+  const today = todayInTimeZone(tz);
   const y = new Date(`${today}T00:00:00Z`);
   y.setUTCDate(y.getUTCDate() - 1);
   const yesterday = y.toISOString().slice(0, 10);
@@ -60,8 +62,7 @@ export default async function ApprovalsPage() {
                 {chore?.title} — {kid?.display_name}
               </h2>
               <p className="text-ink-muted text-sm">
-                Due {i.due_date} · marked done{" "}
-                {i.completed_at ? new Date(i.completed_at).toLocaleString() : ""} ·{" "}
+                Due {i.due_date} · marked done {formatInZone(i.completed_at, tz)} ·{" "}
                 {i.points_available} pts
               </p>
               <div className="mt-3 flex flex-wrap items-start gap-2">
@@ -97,9 +98,8 @@ export default async function ApprovalsPage() {
                 {chore?.title} — {kid?.display_name}
               </h3>
               <p className="text-ink-muted text-sm">
-                Due {i.due_date} · approved{" "}
-                {i.approved_at ? new Date(i.approved_at).toLocaleString() : ""} ·{" "}
-                {i.points_available} pts
+                Due {i.due_date} · approved {formatInZone(i.approved_at, tz)} · {i.points_available}{" "}
+                pts
               </p>
               <div className="mt-3">
                 <UndoCompletionForm instanceId={i.id} />
