@@ -36,7 +36,7 @@ export default async function ChoresPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Chores</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Chore Maintenance</h1>
       <ChoreForm key={initial?.id ?? "new"} initial={initial} />
       <section className="flex flex-col gap-3">
         {(chores ?? []).map((c) => (
