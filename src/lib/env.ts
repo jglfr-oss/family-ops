@@ -3,6 +3,8 @@ export const env = {
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
   serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   cronSecret: process.env.CRON_SECRET ?? "",
+  vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
+  pushEnabled: !!process.env.VAPID_PRIVATE_KEY,
   smsEnabled: process.env.ENABLE_SMS_REMINDERS === "true",
   emailEnabled: process.env.ENABLE_EMAIL_REPORTS === "true",
 };
