@@ -94,7 +94,7 @@ export default async function SchedulesPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Schedules</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Schedule Maintenance</h1>
         <div className="flex items-center gap-2">
           <RefreshTodayButton />
           <Link
