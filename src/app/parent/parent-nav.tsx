@@ -9,6 +9,7 @@ const tabs = [
   { href: "/parent/schedules", label: "Schedules" },
   { href: "/parent/approvals", label: "Approvals" },
   { href: "/parent/reports", label: "Reports" },
+  { href: "/parent/payday", label: "Payday" },
   { href: "/parent/settings", label: "Settings" },
 ];
 
@@ -24,10 +25,7 @@ export function ParentNav() {
   const pathname = usePathname();
 
   return (
-    <nav
-      aria-label="Parent"
-      className="-mx-4 mb-6 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0"
-    >
+    <nav aria-label="Parent" className="-mx-4 mb-6 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0">
       {tabs.map((tab) => {
         const active = isActiveRoute(pathname, tab.href);
 
