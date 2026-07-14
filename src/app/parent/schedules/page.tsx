@@ -6,6 +6,7 @@ import { setScheduleActive } from "@/lib/actions";
 import { ScheduleForm, ExceptionForm, type ScheduleInitial } from "./schedule-forms";
 import { WeekView, type WeekSchedule } from "./week-view";
 import { DeleteScheduleButton } from "./delete-button";
+import { RefreshTodayButton } from "./refresh-button";
 import { todayInTimeZone, dayOfWeek } from "@/lib/services/instances";
 
 export const metadata: Metadata = { title: "Schedules" };
@@ -94,7 +95,8 @@ export default async function SchedulesPage({
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Schedules</h1>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-2">
+          <RefreshTodayButton />
           <Link
             href="/parent/schedules"
             className={`rounded-lg px-3 py-1.5 text-sm font-medium ${!weekMode ? "bg-spruce-soft text-spruce-deep" : "text-ink-muted"}`}
