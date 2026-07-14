@@ -15,9 +15,15 @@ export function NotifyButton() {
           startTransition(async () => {
             const result = await textKidsNow();
             if (result.error) setMessage(result.error);
-            else if ((result.sent ?? 0) === 0)
-              setMessage("Nothing pending (or no phones) — no texts sent.");
-            else setMessage(`Sent to ${result.sent} kid${result.sent === 1 ? "" : "s"}.`);
+            else {
+              const parts = [];
+              if (result.sent) parts.push(`${result.sent} text${result.sent === 1 ? "" : "s"}`);
+              if (result.pushed)
+                parts.push(`${result.pushed} notification${result.pushed === 1 ? "" : "s"}`);
+              setMessage(
+                parts.length ? `Sent ${parts.join(" and ")}.` : "Nothing pending — nothing sent."
+              );
+            }
           })
         }
         className="border-line rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-60"
