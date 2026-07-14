@@ -8,6 +8,7 @@ import { getSessionProfile, homeFor, requireParent } from "@/lib/auth";
 import { choreSchema, scheduleSchema, rejectSchema, overrideSchema } from "@/lib/validation/chores";
 import { pointsForCompletion } from "@/lib/services/scoring";
 import { todayInTimeZone } from "@/lib/services/instances";
+import { generateForHousehold } from "@/lib/services/generate";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -51,6 +52,18 @@ async function audit(
     previous_data: previousData ?? null,
     new_data: newData ?? null,
   });
+}
+
+/** Rebuild today's chore list after a chore/schedule change (idempotent). */
+async function regenerateToday(householdId: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: hh } = await supabase
+    .from("households")
+    .select("timezone")
+    .eq("id", householdId)
+    .single();
+  await generateForHousehold(householdId, hh?.timezone ?? "America/New_York", 1);
+  revalidatePath("/parent");
 }
 
 // ---------- parent: chores ----------
@@ -238,6 +251,7 @@ export async function createSchedule(_prev: ActionState, formData: FormData): Pr
     .single();
   if (error) return { error: "Could not create the schedule." };
   await audit(parent.household_id!, parent.id, "chore_schedule", data.id, "create", null, v);
+  await regenerateToday(parent.household_id!);
   revalidatePath("/parent/schedules");
   return { ok: true };
 }
@@ -306,6 +320,7 @@ export async function updateSchedule(_prev: ActionState, formData: FormData): Pr
     .eq("id", scheduleId);
   if (error) return { error: "Could not update the schedule." };
   await audit(parent.household_id!, parent.id, "chore_schedule", scheduleId, "update", before, v);
+  await regenerateToday(parent.household_id!);
   revalidatePath("/parent/schedules");
   redirect("/parent/schedules");
 }
@@ -332,6 +347,7 @@ export async function toggleScheduleDay(scheduleId: string, day: number): Promis
     { days_of_week: days },
     { days_of_week: next }
   );
+  await regenerateToday(parent.household_id!);
   revalidatePath("/parent/schedules");
   redirect("/parent/schedules?view=week");
 }
@@ -349,6 +365,7 @@ export async function setScheduleActive(scheduleId: string, active: boolean): Pr
     { active: !active },
     { active }
   );
+  if (active) await regenerateToday(parent.household_id!);
   revalidatePath("/parent/schedules");
 }
 
@@ -420,6 +437,7 @@ export async function createException(
     date,
     type,
   });
+  await regenerateToday(parent.household_id!);
   revalidatePath("/parent/schedules");
   return { ok: true };
 }
@@ -780,4 +798,23 @@ export async function overrideInstance(
   });
   revalidatePath("/parent");
   return { ok: true };
+}
+
+/** Parent-triggered rebuild of today's chore list (backstop for the automatic one). */
+export async function refreshTodayChores(): Promise<ActionState> {
+  const parent = await requireParent();
+  const supabase = await createClient();
+  const { data: hh } = await supabase
+    .from("households")
+    .select("timezone")
+    .eq("id", parent.household_id!)
+    .single();
+  const { created, carried } = await generateForHousehold(
+    parent.household_id!,
+    hh?.timezone ?? "America/New_York",
+    1
+  );
+  revalidatePath("/parent/schedules");
+  revalidatePath("/parent");
+  return { ok: true, created, carried } as ActionState & { created: number; carried: number };
 }
