@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import { todayInTimeZone } from "@/lib/services/instances";
 import { sendSms } from "@/lib/services/notifications";
+import { sendPushToUser } from "@/lib/services/push";
 import { isPaused, isQuietTime, type ReminderSettings } from "@/lib/services/reminder-rules";
 import { SMS_BRAND } from "@/lib/services/sms-brand";
 
@@ -34,6 +35,7 @@ export async function GET(request: Request) {
   let logged = 0;
   let skippedQuiet = 0;
   let skippedPaused = 0;
+  let pushed = 0;
 
   for (const hh of households ?? []) {
     const settings = (hh.household_settings ?? null) as unknown as ReminderSettings | null;
@@ -104,6 +106,24 @@ export async function GET(request: Request) {
         error_message: result.error,
       });
       logged += 1;
+
+      // Push runs alongside SMS; it is best-effort and never blocks.
+      const push = await sendPushToUser(
+        childId,
+        `${count} chore${count === 1 ? "" : "s"} ${verb}`,
+        `${shown}${more}`,
+        `/kids/${childId}/today`
+      );
+      if (push.sent > 0) {
+        pushed += push.sent;
+        await admin.from("reminder_log").insert({
+          household_id: hh.id,
+          child_user_id: childId,
+          reminder_type: `${window}:${today}`,
+          delivery_channel: "push",
+          delivery_status: "sent",
+        });
+      }
     }
 
     // Morning pass also sends parents a day overview.
@@ -150,5 +170,5 @@ export async function GET(request: Request) {
       }
     }
   }
-  return NextResponse.json({ ok: true, window, logged, skippedQuiet, skippedPaused });
+  return NextResponse.json({ ok: true, window, logged, pushed, skippedQuiet, skippedPaused });
 }
