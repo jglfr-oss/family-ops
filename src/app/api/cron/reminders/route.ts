@@ -133,8 +133,7 @@ export async function GET(request: Request) {
         .select("id, phone_number")
         .eq("household_id", hh.id)
         .eq("role", "parent")
-        .eq("active", true)
-        .not("phone_number", "is", null);
+        .eq("active", true);
       const { data: kidNames } = await admin
         .from("profiles")
         .select("id, display_name")
@@ -153,20 +152,42 @@ export async function GET(request: Request) {
           .eq("reminder_type", `morning_parent:${today}`)
           .limit(1);
         if (already && already.length > 0) continue;
-        const result = await sendSms(
-          parent.phone_number!,
-          `${SMS_BRAND} today: ${overview} chores on deck. Reply STOP to opt out.`
+
+        // SMS only to parents with a phone number.
+        if (parent.phone_number) {
+          const result = await sendSms(
+            parent.phone_number,
+            `${SMS_BRAND} today: ${overview} chores on deck. Reply STOP to opt out.`
+          );
+          await admin.from("reminder_log").insert({
+            household_id: hh.id,
+            child_user_id: parent.id,
+            reminder_type: `morning_parent:${today}`,
+            delivery_channel: "sms",
+            delivery_status: result.status,
+            provider_message_id: result.providerMessageId,
+            error_message: result.error,
+          });
+          logged += 1;
+        }
+
+        // Push to every parent device.
+        const push = await sendPushToUser(
+          parent.id,
+          "Choreo — today",
+          `${overview} chores on deck.`,
+          "/parent"
         );
-        await admin.from("reminder_log").insert({
-          household_id: hh.id,
-          child_user_id: parent.id,
-          reminder_type: `morning_parent:${today}`,
-          delivery_channel: "sms",
-          delivery_status: result.status,
-          provider_message_id: result.providerMessageId,
-          error_message: result.error,
-        });
-        logged += 1;
+        if (push.sent > 0) {
+          pushed += push.sent;
+          await admin.from("reminder_log").insert({
+            household_id: hh.id,
+            child_user_id: parent.id,
+            reminder_type: `morning_parent_push:${today}`,
+            delivery_channel: "push",
+            delivery_status: "sent",
+          });
+        }
       }
     }
   }
