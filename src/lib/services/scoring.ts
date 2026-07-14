@@ -72,7 +72,11 @@ export function reliabilityScore(
       ? completionRate
       : withDue.filter((i) => new Date(i.completed_at!) <= new Date(i.due_at!)).length /
         withDue.length;
+  // Consistency: the current streak measured against how many days actually had
+  // chores (capped at a week). A flawless 3-day week is fully consistent — it
+  // should not be penalised for the calendar being short.
+  const daysWithChores = new Set(countable.map((i) => i.due_date)).size;
   const streak = currentStreak(instances);
-  const consistency = Math.min(streak / 7, 1);
+  const consistency = daysWithChores === 0 ? 1 : Math.min(streak / Math.min(daysWithChores, 7), 1);
   return Math.round((completionRate * 0.5 + onTimeRate * 0.3 + consistency * 0.2) * 100);
 }
