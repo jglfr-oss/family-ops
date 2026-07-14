@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { requireParent } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { SettingsForm } from "./settings-form";
+import { AllowanceForm } from "./allowance-form";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const parent = await requireParent();
   const supabase = await createClient();
-  const [{ data: household }, { data: settings }] = await Promise.all([
+  const [{ data: household }, { data: settings }, { data: kids }] = await Promise.all([
     supabase.from("households").select("name, timezone").eq("id", parent.household_id!).single(),
     supabase
       .from("household_settings")
@@ -17,11 +18,25 @@ export default async function SettingsPage() {
       )
       .eq("household_id", parent.household_id!)
       .maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("id, display_name, weekly_allowance")
+      .eq("household_id", parent.household_id!)
+      .eq("role", "child")
+      .eq("active", true)
+      .order("display_name"),
   ]);
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight">Household settings</h1>
+      <AllowanceForm
+        kids={(kids ?? []).map((k) => ({
+          id: k.id,
+          display_name: k.display_name,
+          weekly_allowance: Number(k.weekly_allowance ?? 0),
+        }))}
+      />
       <SettingsForm
         initial={{
           name: household?.name ?? "Our Household",
