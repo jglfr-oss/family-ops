@@ -6,6 +6,8 @@ import { currentStreak } from "@/lib/services/scoring";
 import { formatTimeInZone } from "@/lib/format";
 import { CompleteButton, UndoButton } from "./complete-button";
 import { PushToggle } from "@/components/push-toggle";
+import { EarningsCard } from "../earnings-card";
+import { weekStart, weekEnd } from "@/lib/services/allowance";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -27,7 +29,7 @@ export default async function KidToday({ params }: { params: Promise<{ childId: 
 
   const { data: kid } = await supabase
     .from("profiles")
-    .select("display_name, household_id")
+    .select("display_name, household_id, weekly_allowance")
     .eq("id", childId)
     .single();
   const { data: household } = await supabase
@@ -38,26 +40,36 @@ export default async function KidToday({ params }: { params: Promise<{ childId: 
   const tz = household?.timezone ?? "America/New_York";
   const today = todayInTimeZone(tz);
 
-  const [{ data: instances }, { data: recent }, { data: scores }] = await Promise.all([
-    supabase
-      .from("chore_instances")
-      .select("id, status, due_at, points_available, parent_note, chores(title, description)")
-      .eq("assigned_user_id", childId)
-      .eq("due_date", today)
-      .order("due_at", { ascending: true, nullsFirst: false }),
-    supabase
-      .from("chore_instances")
-      .select("due_date, status")
-      .eq("assigned_user_id", childId)
-      .lte("due_date", today)
-      .order("due_date", { ascending: false })
-      .limit(200),
-    supabase
-      .from("score_events")
-      .select("points, occurred_at")
-      .eq("user_id", childId)
-      .gte("occurred_at", `${localDateTimeToUtcIso(today, "00:00", tz)}`),
-  ]);
+  const wkStart = weekStart(today);
+  const wkEnd = weekEnd(today);
+
+  const [{ data: instances }, { data: recent }, { data: scores }, { data: weekInstances }] =
+    await Promise.all([
+      supabase
+        .from("chore_instances")
+        .select("id, status, due_at, points_available, parent_note, chores(title, description)")
+        .eq("assigned_user_id", childId)
+        .eq("due_date", today)
+        .order("due_at", { ascending: true, nullsFirst: false }),
+      supabase
+        .from("chore_instances")
+        .select("due_date, status")
+        .eq("assigned_user_id", childId)
+        .lte("due_date", today)
+        .order("due_date", { ascending: false })
+        .limit(200),
+      supabase
+        .from("score_events")
+        .select("points, occurred_at")
+        .eq("user_id", childId)
+        .gte("occurred_at", `${localDateTimeToUtcIso(today, "00:00", tz)}`),
+      supabase
+        .from("chore_instances")
+        .select("due_date, status, due_at, completed_at")
+        .eq("assigned_user_id", childId)
+        .gte("due_date", wkStart)
+        .lte("due_date", wkEnd),
+    ]);
 
   const list = instances ?? [];
   const doneCount = list.filter((i) => DONE.has(i.status)).length;
@@ -80,6 +92,12 @@ export default async function KidToday({ params }: { params: Promise<{ childId: 
           {pointsToday} points today · {streak}-day streak {streak >= 5 ? "🔥" : ""}
         </p>
       </section>
+
+      <EarningsCard
+        instances={weekInstances ?? []}
+        base={Number(kid?.weekly_allowance ?? 0)}
+        weekLabel={`${wkStart} – ${wkEnd}`}
+      />
 
       <PushToggle />
 
