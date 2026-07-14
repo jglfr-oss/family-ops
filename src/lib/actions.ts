@@ -9,6 +9,7 @@ import { choreSchema, scheduleSchema, rejectSchema, overrideSchema } from "@/lib
 import { pointsForCompletion } from "@/lib/services/scoring";
 import { todayInTimeZone } from "@/lib/services/instances";
 import { generateForHousehold } from "@/lib/services/generate";
+import { sendPushToParents } from "@/lib/services/push";
 
 export type ActionState = { error?: string; ok?: boolean };
 
@@ -591,6 +592,22 @@ export async function completeChore(instanceId: string): Promise<ActionState> {
     previous_status: "pending",
     new_status: newStatus,
   });
+
+  // Alert parents that a completion is waiting for approval.
+  const { data: choreRow } = await supabase
+    .from("chore_instances")
+    .select("chores(title), profiles!chore_instances_assigned_user_id_fkey(display_name)")
+    .eq("id", instanceId)
+    .single();
+  const choreTitle = (choreRow?.chores as unknown as { title: string } | null)?.title ?? "A chore";
+  const kidName =
+    (choreRow?.profiles as unknown as { display_name: string } | null)?.display_name ?? "A child";
+  await sendPushToParents(
+    instance.household_id,
+    "Waiting for approval",
+    `${kidName} finished "${choreTitle}".`,
+    "/parent/approvals"
+  );
 
   revalidatePath(`/kids/${instance.assigned_user_id}/today`);
   return { ok: true };
