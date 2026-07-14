@@ -66,3 +66,31 @@ export async function sendPushToUser(
 
   return result;
 }
+
+/**
+ * Push a notification to every parent in a household (all their devices).
+ * Used for approval alerts and the morning family overview.
+ */
+export async function sendPushToParents(
+  householdId: string,
+  title: string,
+  body: string,
+  url = "/parent"
+): Promise<PushResult> {
+  const admin = createAdminClient();
+  const { data: parents } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("household_id", householdId)
+    .eq("role", "parent")
+    .eq("active", true);
+
+  const totals: PushResult = { sent: 0, failed: 0, pruned: 0 };
+  for (const parent of parents ?? []) {
+    const r = await sendPushToUser(parent.id, title, body, url);
+    totals.sent += r.sent;
+    totals.failed += r.failed;
+    totals.pruned += r.pruned;
+  }
+  return totals;
+}
