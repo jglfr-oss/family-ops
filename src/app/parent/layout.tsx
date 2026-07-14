@@ -6,10 +6,15 @@ const tabs = [
   { href: "/parent/chores", label: "Chores" },
   { href: "/parent/schedules", label: "Schedules" },
   { href: "/parent/approvals", label: "Approvals" },
+  { href: "/parent/reports", label: "Reports" },
   { href: "/parent/settings", label: "Settings" },
 ];
 
-export default async function ParentLayout({ children }: { children: React.ReactNode }) {
+export default async function ParentLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   await requireParent(); // server-side role guard (layer 2; RLS is layer 1)
   return (
     <div>
