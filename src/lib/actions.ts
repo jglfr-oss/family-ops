@@ -495,6 +495,38 @@ export async function updateSettings(_prev: ActionState, formData: FormData): Pr
   return { ok: true };
 }
 
+export async function updateAllowances(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const parent = await requireParent();
+  const supabase = await createClient();
+
+  const { data: kids } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("household_id", parent.household_id!)
+    .eq("role", "child");
+
+  for (const kid of kids ?? []) {
+    const raw = formData.get(`allowance_${kid.id}`);
+    if (raw === null) continue;
+    const amount = Number(String(raw).replace(/[^0-9.]/g, ""));
+    if (!Number.isFinite(amount) || amount < 0 || amount > 1000)
+      return { error: "Allowance must be between 0 and 1000." };
+    await supabase
+      .from("profiles")
+      .update({ weekly_allowance: amount })
+      .eq("id", kid.id)
+      .eq("household_id", parent.household_id!);
+  }
+
+  await audit(parent.household_id!, parent.id, "allowance", null, "update", null, null);
+  revalidatePath("/parent/settings");
+  revalidatePath("/parent/payday");
+  return { ok: true };
+}
+
 // ---------- child: completion ----------
 
 export async function completeChore(instanceId: string): Promise<ActionState> {
