@@ -3,7 +3,9 @@ import { requireChildSelf } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayInTimeZone, localDateTimeToUtcIso } from "@/lib/services/instances";
 import { currentStreak } from "@/lib/services/scoring";
+import { formatTimeInZone } from "@/lib/format";
 import { CompleteButton, UndoButton } from "./complete-button";
+import { PushToggle } from "@/components/push-toggle";
 
 export const metadata: Metadata = { title: "Today" };
 
@@ -79,6 +81,8 @@ export default async function KidToday({ params }: { params: Promise<{ childId: 
         </p>
       </section>
 
+      <PushToggle />
+
       <section className="flex flex-col gap-3">
         {list.map((i) => {
           const chore = i.chores as unknown as { title: string; description: string | null } | null;
@@ -92,9 +96,7 @@ export default async function KidToday({ params }: { params: Promise<{ childId: 
                   )}
                   <p className="text-ink-muted mt-1 text-xs">
                     {LABEL[i.status]}
-                    {i.due_at
-                      ? ` · due ${new Date(i.due_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-                      : ""}
+                    {i.due_at ? ` · due ${formatTimeInZone(i.due_at, tz)}` : ""}
                     {" · "}
                     {i.points_available} pts
                   </p>
