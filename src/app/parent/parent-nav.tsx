@@ -58,10 +58,7 @@ export function ParentNav() {
     "bg-spruce-soft text-spruce-deep rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap";
 
   return (
-    <nav
-      aria-label="Parent"
-      className="-mx-4 mb-6 flex items-center gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0"
-    >
+    <nav aria-label="Parent" className="mb-6 flex flex-wrap items-center gap-1">
       {dailyTabs.map((tab) => {
         const active = isActiveRoute(pathname, tab.href);
         return (
@@ -93,7 +90,7 @@ export function ParentNav() {
         {open && (
           <div
             role="menu"
-            className="rounded-card border-line bg-card absolute left-0 z-10 mt-1 min-w-52 border p-1 shadow-lg"
+            className="border-line absolute top-full left-0 z-50 mt-1 min-w-56 rounded-xl border bg-white p-1 shadow-xl"
           >
             {maintenanceItems.map((item) => {
               const active = isActiveRoute(pathname, item.href);
