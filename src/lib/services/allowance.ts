@@ -100,3 +100,53 @@ export function summarizeWeek(
 export function money(n: number): string {
   return `$${n.toFixed(2)}`;
 }
+
+export type WeekHistoryEntry = {
+  weekStart: string;
+  weekEnd: string;
+  reliability: number;
+  tierLabel: string;
+  earned: number;
+  base: number;
+  done: number;
+  total: number;
+};
+
+/**
+ * Compute earnings history for completed weeks (most recent first), excluding
+ * the current in-progress week. Derived entirely from chore instances, so it is
+ * always accurate and needs no stored records.
+ */
+export function buildWeeklyHistory(
+  instances: Pick<ChoreInstance, "due_date" | "status" | "due_at" | "completed_at">[],
+  base: number,
+  currentWeekStart: string,
+  maxWeeks = 12
+): WeekHistoryEntry[] {
+  const byWeek = new Map<string, typeof instances>();
+  for (const i of instances) {
+    const ws = weekStart(i.due_date);
+    if (ws >= currentWeekStart) continue; // skip the in-progress week
+    const list = byWeek.get(ws) ?? [];
+    list.push(i);
+    byWeek.set(ws, list);
+  }
+
+  return [...byWeek.keys()]
+    .sort()
+    .reverse()
+    .slice(0, maxWeeks)
+    .map((ws) => {
+      const summary = summarizeWeek(byWeek.get(ws)!, base);
+      return {
+        weekStart: ws,
+        weekEnd: weekEnd(ws),
+        reliability: summary.reliability,
+        tierLabel: summary.tier.label,
+        earned: summary.earned,
+        base: summary.base,
+        done: summary.done,
+        total: summary.total,
+      };
+    });
+}
