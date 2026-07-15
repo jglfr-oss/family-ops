@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import { requireParent } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayInTimeZone } from "@/lib/services/instances";
-import { money, summarizeWeek, weekEnd, weekStart, TIERS } from "@/lib/services/allowance";
+import {
+  buildWeeklyHistory,
+  money,
+  summarizeWeek,
+  weekEnd,
+  weekStart,
+  TIERS,
+} from "@/lib/services/allowance";
 import type { ChoreInstance } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Payday" };
@@ -62,12 +69,31 @@ export default async function PaydayPage({
       .lte("due_date", wkEnd),
   ]);
 
+  // History window: ~13 weeks back from the current week start.
+  const histFrom = (() => {
+    const d = new Date(`${weekStart(today)}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 7 * 13);
+    return d.toISOString().slice(0, 10);
+  })();
+  const { data: histRows } = await supabase
+    .from("chore_instances")
+    .select("assigned_user_id, due_date, status, due_at, completed_at")
+    .eq("household_id", parent.household_id!)
+    .gte("due_date", histFrom)
+    .lt("due_date", weekStart(today));
+
   const instances = (rows ?? []) as unknown as WeekRow[];
   const cards = (kids ?? []).map((kid) => {
     const mine = instances.filter((i) => i.assigned_user_id === kid.id);
     const summary = summarizeWeek(mine, Number(kid.weekly_allowance ?? 0));
     const missed = mine.filter((i) => i.status === "missed" || i.status === "rejected");
-    return { kid, summary, missed };
+    const history = buildWeeklyHistory(
+      ((histRows ?? []) as unknown as WeekRow[]).filter((h) => h.assigned_user_id === kid.id),
+      Number(kid.weekly_allowance ?? 0),
+      weekStart(today),
+      13
+    );
+    return { kid, summary, missed, weekHistory: history };
   });
 
   const total = cards.reduce((sum, c) => sum + c.summary.earned, 0);
@@ -95,7 +121,7 @@ export default async function PaydayPage({
         {wkStart} – {wkEnd} (Sunday to Saturday)
       </p>
 
-      {cards.map(({ kid, summary, missed }) => (
+      {cards.map(({ kid, summary, missed, weekHistory }) => (
         <section key={kid.id} className="rounded-card border-line bg-card border p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold">{kid.display_name}</h2>
@@ -129,6 +155,30 @@ export default async function PaydayPage({
             <p className="mt-3 text-sm text-red-700">
               No weekly allowance set — add one in Settings.
             </p>
+          )}
+
+          {weekHistory.length > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                Earnings history ({weekHistory.length} weeks ·{" "}
+                {money(weekHistory.reduce((sum, w) => sum + w.earned, 0))} total)
+              </summary>
+              <div className="mt-2 space-y-1.5">
+                {weekHistory.map((w) => (
+                  <div
+                    key={w.weekStart}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="text-ink-muted">
+                      {w.weekStart} – {w.weekEnd} · {w.reliability}% ({w.tierLabel})
+                    </span>
+                    <span className="text-spruce-deep font-medium whitespace-nowrap">
+                      {money(w.earned)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </details>
           )}
         </section>
       ))}
