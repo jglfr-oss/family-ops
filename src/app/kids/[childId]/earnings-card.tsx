@@ -5,10 +5,12 @@ export function EarningsCard({
   instances,
   base,
   weekLabel,
+  inProgress = true,
 }: {
   instances: Pick<ChoreInstance, "due_date" | "status" | "due_at" | "completed_at">[];
   base: number;
   weekLabel: string;
+  inProgress?: boolean;
 }) {
   if (base <= 0) return null;
   const s: WeekSummary = summarizeWeek(instances, base);
@@ -17,17 +19,26 @@ export function EarningsCard({
   return (
     <section className="rounded-card border-line bg-card border p-5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-semibold">This week&apos;s allowance</h2>
+        <h2 className="font-semibold">
+          {inProgress ? "This week so far" : "This week's allowance"}
+        </h2>
         <span className="text-ink-muted text-xs">{weekLabel}</span>
       </div>
 
       <p className="text-spruce-deep mt-2 text-3xl font-semibold">
-        {money(s.earned)}
+        {inProgress ? "On track for " : ""}
+        {money(inProgress ? s.maxPossible : s.earned)}
         <span className="text-ink-muted text-base font-normal"> of {money(s.base)}</span>
       </p>
       <p className="text-ink-muted mt-1 text-sm">
-        {s.reliability}% reliable · {s.tier.label} · {s.done} of {s.total} chores done
+        {s.reliability}% reliable so far · {s.tier.label} · {s.done} of {s.total} chores done
       </p>
+      {inProgress && (
+        <p className="text-ink-muted mt-1 text-xs">
+          Not final until the week ends on Saturday — keep completing chores to lock in your
+          allowance.
+        </p>
+      )}
 
       <div className="bg-spruce-soft mt-3 h-2 w-full overflow-hidden rounded-full">
         <div
