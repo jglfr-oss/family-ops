@@ -16,19 +16,18 @@ export function NotifyButton() {
             const result = await textKidsNow();
             if (result.error) setMessage(result.error);
             else {
-              const parts = [];
-              if (result.sent) parts.push(`${result.sent} text${result.sent === 1 ? "" : "s"}`);
-              if (result.pushed)
-                parts.push(`${result.pushed} notification${result.pushed === 1 ? "" : "s"}`);
+              const pushed = result.pushed ?? 0;
               setMessage(
-                parts.length ? `Sent ${parts.join(" and ")}.` : "Nothing pending — nothing sent."
+                pushed > 0
+                  ? `Sent ${pushed} notification${pushed === 1 ? "" : "s"}.`
+                  : "Nothing pending, or no one has notifications on yet."
               );
             }
           })
         }
         className="border-line rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-60"
       >
-        {pending ? "Sending…" : "Text kids now"}
+        {pending ? "Sending…" : "Notify kids now"}
       </button>
       {message && <p className="text-ink-muted text-xs">{message}</p>}
     </div>
