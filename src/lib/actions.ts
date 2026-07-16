@@ -528,6 +528,78 @@ export async function updateAllowances(
   return { ok: true };
 }
 
+export async function requestPayout(weekStartDate: string): Promise<ActionState> {
+  const profile = await getSessionProfile();
+  if (!profile || !profile.household_id) redirect("/login");
+  const supabase = await createClient();
+
+  // Recompute the week's earnings server-side — never trust a client amount.
+  const wkEnd = new Date(`${weekStartDate}T00:00:00Z`);
+  wkEnd.setUTCDate(wkEnd.getUTCDate() + 6);
+  const weekEndDate = wkEnd.toISOString().slice(0, 10);
+
+  const { data: kid } = await supabase
+    .from("profiles")
+    .select("weekly_allowance")
+    .eq("id", profile.id)
+    .single();
+  const base = Number(kid?.weekly_allowance ?? 0);
+  if (base <= 0) return { error: "No allowance is set for you yet." };
+
+  const { data: weekInstances } = await supabase
+    .from("chore_instances")
+    .select("due_date, status, due_at, completed_at")
+    .eq("assigned_user_id", profile.id)
+    .gte("due_date", weekStartDate)
+    .lte("due_date", weekEndDate);
+
+  const { summarizeWeek } = await import("@/lib/services/allowance");
+  const summary = summarizeWeek(weekInstances ?? [], base);
+
+  const { error } = await supabase.from("payout_requests").upsert(
+    {
+      household_id: profile.household_id,
+      user_id: profile.id,
+      week_start: weekStartDate,
+      week_end: weekEndDate,
+      amount: summary.earned,
+      reliability: summary.reliability,
+      status: "requested",
+    },
+    { onConflict: "user_id,week_start" }
+  );
+  if (error) return { error: "Could not send your request." };
+
+  await sendPushToParents(
+    profile.household_id,
+    "Payout requested",
+    `${profile.display_name} requested ${`$${summary.earned.toFixed(2)}`} for the week of ${weekStartDate}.`,
+    "/parent/payday"
+  );
+  revalidatePath("/parent/payday");
+  return { ok: true };
+}
+
+export async function settlePayout(
+  requestId: string,
+  decision: "paid" | "declined"
+): Promise<ActionState> {
+  const parent = await requireParent();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("payout_requests")
+    .update({
+      status: decision,
+      settled_at: new Date().toISOString(),
+      settled_by: parent.id,
+    })
+    .eq("id", requestId)
+    .eq("household_id", parent.household_id!);
+  if (error) return { error: "Could not update the request." };
+  revalidatePath("/parent/payday");
+  return { ok: true };
+}
+
 // ---------- child: completion ----------
 
 export async function completeChore(instanceId: string): Promise<ActionState> {
