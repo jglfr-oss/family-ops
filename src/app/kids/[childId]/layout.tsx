@@ -14,6 +14,7 @@ export default async function KidLayout({
   const tabs = [
     { href: `/kids/${childId}/today`, label: "Today" },
     { href: `/kids/${childId}/week`, label: "This week" },
+    { href: `/kids/${childId}/upcoming`, label: "Upcoming" },
     { href: `/kids/${childId}/history`, label: "History" },
     { href: `/kids/${childId}/leaderboard`, label: "Leaderboard" },
   ];
