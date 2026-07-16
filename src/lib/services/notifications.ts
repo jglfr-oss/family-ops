@@ -8,41 +8,11 @@ import { env } from "@/lib/env";
  */
 export type SendResult = { status: string; providerMessageId: string | null; error: string | null };
 
-export async function sendSms(to: string, body: string): Promise<SendResult> {
-  if (!env.smsEnabled)
-    return { status: "skipped_flag_disabled", providerMessageId: null, error: null };
-  if (!to) return { status: "skipped_no_phone", providerMessageId: null, error: null };
-
-  const sid = process.env.TWILIO_ACCOUNT_SID ?? "";
-  const token = process.env.TWILIO_AUTH_TOKEN ?? "";
-  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID ?? "";
-  if (!sid || !token || !messagingServiceSid)
-    return { status: "failed", providerMessageId: null, error: "Twilio env vars missing" };
-
-  try {
-    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({ To: to, MessagingServiceSid: messagingServiceSid, Body: body }),
-    });
-    const data = (await res.json()) as { sid?: string; message?: string };
-    if (!res.ok)
-      return {
-        status: "failed",
-        providerMessageId: null,
-        error: data.message ?? `HTTP ${res.status}`,
-      };
-    return { status: "sent", providerMessageId: data.sid ?? null, error: null };
-  } catch (e) {
-    return {
-      status: "failed",
-      providerMessageId: null,
-      error: e instanceof Error ? e.message : "unknown error",
-    };
-  }
+export async function sendSms(_to: string, _body: string): Promise<SendResult> {
+  // SMS is intentionally disabled. Choreo uses push notifications and email
+  // instead of text messages, so this never contacts a carrier. Kept as a
+  // no-op so existing callers and their logging continue to work unchanged.
+  return { status: "skipped_sms_disabled", providerMessageId: null, error: null };
 }
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<SendResult> {
