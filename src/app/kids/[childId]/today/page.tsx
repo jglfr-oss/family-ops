@@ -7,6 +7,7 @@ import { formatTimeInZone } from "@/lib/format";
 import { CompleteButton, UndoButton } from "./complete-button";
 import { PushToggle } from "@/components/push-toggle";
 import { EarningsCard } from "../earnings-card";
+import { RequestPayoutButton } from "../request-payout-button";
 import { weekStart, weekEnd } from "@/lib/services/allowance";
 
 export const metadata: Metadata = { title: "Today" };
@@ -42,6 +43,11 @@ export default async function KidToday({ params }: { params: Promise<{ childId: 
 
   const wkStart = weekStart(today);
   const wkEnd = weekEnd(today);
+  const lastWeekStart = (() => {
+    const d = new Date(`${wkStart}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 1);
+    return weekStart(d.toISOString().slice(0, 10));
+  })();
 
   const [{ data: instances }, { data: recent }, { data: scores }, { data: weekInstances }] =
     await Promise.all([
@@ -71,6 +77,13 @@ export default async function KidToday({ params }: { params: Promise<{ childId: 
         .lte("due_date", wkEnd),
     ]);
 
+  const { data: lastPayout } = await supabase
+    .from("payout_requests")
+    .select("status")
+    .eq("user_id", childId)
+    .eq("week_start", lastWeekStart)
+    .maybeSingle();
+
   const list = instances ?? [];
   const doneCount = list.filter((i) => DONE.has(i.status)).length;
   const pointsToday = (scores ?? []).reduce((sum, s) => sum + s.points, 0);
@@ -97,7 +110,18 @@ export default async function KidToday({ params }: { params: Promise<{ childId: 
         instances={weekInstances ?? []}
         base={Number(kid?.weekly_allowance ?? 0)}
         weekLabel={`${wkStart} – ${wkEnd}`}
+        inProgress
       />
+
+      {Number(kid?.weekly_allowance ?? 0) > 0 && (
+        <section className="rounded-card border-line bg-card border p-4">
+          <p className="text-sm font-medium">Last week ({lastWeekStart})</p>
+          <p className="text-ink-muted text-xs">
+            Ready to get paid for last week? Send your parent a request.
+          </p>
+          <RequestPayoutButton weekStart={lastWeekStart} status={lastPayout?.status ?? null} />
+        </section>
+      )}
 
       <PushToggle />
 
