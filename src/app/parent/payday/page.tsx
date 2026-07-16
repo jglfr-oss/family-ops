@@ -10,6 +10,7 @@ import {
   weekStart,
   TIERS,
 } from "@/lib/services/allowance";
+import { SettleButtons } from "./settle-buttons";
 import type { ChoreInstance } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Payday" };
@@ -83,6 +84,13 @@ export default async function PaydayPage({
     .gte("due_date", histFrom)
     .lt("due_date", weekStart(today));
 
+  const { data: payoutRequests } = await supabase
+    .from("payout_requests")
+    .select("id, user_id, week_start, week_end, amount, reliability, status")
+    .eq("household_id", parent.household_id!)
+    .eq("status", "requested")
+    .order("week_start", { ascending: false });
+
   const instances = (rows ?? []) as unknown as WeekRow[];
   const cards = (kids ?? []).map((kid) => {
     const mine = instances.filter((i) => i.assigned_user_id === kid.id);
@@ -122,6 +130,34 @@ export default async function PaydayPage({
       <p className="text-ink-muted -mt-4 text-sm">
         {wkStart} – {wkEnd} (Sunday to Saturday)
       </p>
+
+      {(payoutRequests ?? []).length > 0 && (
+        <section className="rounded-card border-spruce bg-spruce-soft/40 border p-5">
+          <h2 className="font-semibold">Payout requests</h2>
+          <div className="mt-3 space-y-3">
+            {(payoutRequests ?? []).map((req) => {
+              const name =
+                (kids ?? []).find((k) => k.id === req.user_id)?.display_name ?? "A child";
+              return (
+                <div
+                  key={req.id}
+                  className="rounded-card border-line flex flex-wrap items-center justify-between gap-3 border bg-white p-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">
+                      {name} · {money(Number(req.amount))}
+                    </p>
+                    <p className="text-ink-muted text-xs">
+                      Week of {req.week_start} · {req.reliability}% reliable
+                    </p>
+                  </div>
+                  <SettleButtons requestId={req.id} />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {cards.map(({ kid, summary, missed, weekHistory }) => (
         <section key={kid.id} className="rounded-card border-line bg-card border p-5">
