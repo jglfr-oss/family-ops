@@ -51,6 +51,7 @@ export default async function PaydayPage({
         })()
       : today;
   const wkStart = weekStart(anchor);
+  const isCurrentWeek = wkStart === weekStart(today);
   const wkEnd = weekEnd(anchor);
 
   const [{ data: kids }, { data: rows }] = await Promise.all([
@@ -97,6 +98,7 @@ export default async function PaydayPage({
   });
 
   const total = cards.reduce((sum, c) => sum + c.summary.earned, 0);
+  const projectedTotal = cards.reduce((sum, c) => sum + c.summary.maxPossible, 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -126,13 +128,16 @@ export default async function PaydayPage({
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold">{kid.display_name}</h2>
             <p className="text-spruce-deep text-2xl font-semibold">
-              {money(summary.earned)}
+              {isCurrentWeek && (
+                <span className="text-ink-muted text-sm font-normal">on track for </span>
+              )}
+              {money(isCurrentWeek ? summary.maxPossible : summary.earned)}
               <span className="text-ink-muted text-sm font-normal"> of {money(summary.base)}</span>
             </p>
           </div>
           <p className="text-ink-muted mt-1 text-sm">
-            {summary.reliability}% reliable ({summary.tier.label}) · {summary.done} of{" "}
-            {summary.total} chores done
+            {summary.reliability}% reliable{isCurrentWeek ? " so far" : ""} ({summary.tier.label}) ·{" "}
+            {summary.done} of {summary.total} chores done
             {summary.remaining > 0 ? ` · ${summary.remaining} still pending` : ""}
           </p>
 
@@ -185,8 +190,15 @@ export default async function PaydayPage({
 
       <section className="rounded-card border-line bg-card border p-5">
         <p className="font-semibold">
-          Total to pay: <span className="text-spruce-deep">{money(total)}</span>
+          {isCurrentWeek ? "Projected total (week in progress): " : "Total to pay: "}
+          <span className="text-spruce-deep">{money(isCurrentWeek ? projectedTotal : total)}</span>
         </p>
+        {isCurrentWeek && (
+          <p className="text-ink-muted mt-1 text-xs">
+            This week isn&apos;t over yet — amounts are projections if every remaining chore gets
+            done, and will change as the week finishes. Switch to Last week to see final earnings.
+          </p>
+        )}
         <div className="mt-3">
           <p className="text-ink-muted text-xs font-medium">How it works</p>
           <ul className="mt-1 space-y-0.5">
